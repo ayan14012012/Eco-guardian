@@ -1742,21 +1742,111 @@ function createQRElement(qrData) {
 }
 
 // Handle QR code scanning for permanent codes
+// Handle QR code scanning for permanent codes - UPDATED
 function handleQRScan(qrData) {
-    // Parse the permanent QR code data
-    // Format: "eco-guardian:bin:1:Bharat Apartment:28.7402,77.1234"
-    const parts = qrData.split(':');
+    console.log("QR Code Scanned:", qrData);
     
-    if (parts.length >= 5 && parts[0] === 'eco-guardian' && parts[1] === 'bin') {
-        const binId = parts[2];
-        const binName = parts[3];
-        const binLocation = parts.slice(4).join(':'); // Handle locations with colons
+    // Check if it's a URL (starts with http)
+    if (qrData.startsWith('http')) {
+        // ✅ It's a direct URL - redirect to it
+        console.log("Redirecting to:", qrData);
+        window.open(qrData, '_blank'); // Open in new tab
+        showNotification('📱 Opening complaint form...', 'info');
+    } 
+    // Check if it's the old format (eco-guardian:bin:...)
+    else if (qrData.startsWith('eco-guardian:bin:')) {
+        // Parse the permanent QR code data
+        const parts = qrData.split(':');
         
-        // Open complaint modal with bin info
-        openQRComplaintModal(binId, binName, binLocation);
-    } else {
-        showNotification('Invalid QR code format', 'error');
+        if (parts.length >= 5 && parts[0] === 'eco-guardian' && parts[1] === 'bin') {
+            const binId = parts[2];
+            const binName = parts[3];
+            const binLocation = parts.slice(4).join(':'); // Handle locations with colons
+            
+            // Open complaint modal with bin info
+            openQRComplaintModal(binId, binName, binLocation);
+        } else {
+            showNotification('Invalid QR code format', 'error');
+        }
     }
+    // If it's just bin data, open the modal
+    else {
+        showNotification('QR code scanned! Opening complaint form...', 'info');
+        // Try to extract bin info or use default
+        openQRComplaintModal(1, 'Unknown Bin', 'Unknown Location');
+    }
+}
+
+// Make QR code items clickable and show they're interactive
+function createQRElement(qrData) {
+    const div = document.createElement('div');
+    div.className = 'qr-code-item';
+    div.style.textAlign = 'center';
+    div.style.padding = '1.5rem';
+    div.style.background = 'white';
+    div.style.borderRadius = '12px';
+    div.style.border = '2px solid #e9ecef';
+    div.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    div.style.cursor = 'pointer';
+    div.style.transition = 'all 0.3s ease';
+    
+    div.onmouseenter = function() {
+        this.style.transform = 'translateY(-5px)';
+        this.style.boxShadow = '0 8px 15px rgba(0,0,0,0.2)';
+        this.style.borderColor = '#3498db';
+    };
+    
+    div.onmouseleave = function() {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+        this.style.borderColor = '#e9ecef';
+    };
+
+    // Parse the QR data to get bin info
+    let binId, binName, binLocation;
+    
+    if (qrData.qr_data.startsWith('http')) {
+        // It's a URL - extract info from query parameters
+        const url = new URL(qrData.qr_data);
+        binId = url.searchParams.get('bin_id') || 'Unknown';
+        binName = url.searchParams.get('name') || qrData.bin_name || `Bin ${binId}`;
+        binLocation = url.searchParams.get('location') || qrData.location || 'Unknown Location';
+    } else {
+        // Old format
+        const parts = qrData.qr_data.split(':');
+        binId = parts[2] || qrData.bin_id;
+        binName = parts[3] || qrData.bin_name || `Bin ${binId}`;
+        binLocation = parts.slice(4).join(':') || qrData.location || 'Unknown Location';
+    }
+
+    div.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 0.8rem; font-size: 0.95rem; color: #2c3e50;">
+            ${binName}
+        </div>
+        <img src="${qrData.qr_code}" 
+             alt="QR Code for ${binName}" 
+             style="width: 140px; height: 140px; border: 2px solid #ddd; border-radius: 8px;">
+        <div style="font-size: 0.8rem; color: #666; margin-top: 0.8rem;">
+            📱 Tap QR Code to Scan
+        </div>
+        <div style="font-size: 0.7rem; color: #999; margin-top: 0.3rem;">
+            Bin ID: ${binId}
+        </div>
+        <button onclick="handleQRScan('${qrData.qr_data.replace(/'/g, "\\'")}')" 
+                style="margin-top: 0.8rem; padding: 0.4rem 0.8rem; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+            Test Scan
+        </button>
+        <div style="font-size: 0.6rem; color: #3498db; margin-top: 0.5rem;">
+            👆 Click to open complaint form
+        </div>
+    `;
+    
+    // Make the entire QR code clickable
+    div.onclick = function() {
+        handleQRScan(qrData.qr_data);
+    };
+    
+    return div;
 }
 
 // Open complaint modal with bin info
