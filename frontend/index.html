@@ -1599,14 +1599,25 @@ async function resolveAlert(alertId) {
 let currentQRBinId = null;
 
 // Generate ALL QR codes at once using the new endpoint
+// Enhanced QR code generation with error handling
 async function generateAllQRCodes() {
     const container = document.getElementById('qr-codes-container');
-    container.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner"></div><br>Generating permanent QR codes...</div>';
+    container.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner"></div><br>Generating QR codes...</div>';
     
     try {
         const API_BASE = 'https://swachh-doot-2-o.onrender.com';
         console.log('Fetching all QR codes at once...');
         
+        // First, try the simple endpoint to see if bins exist
+        const simpleResponse = await fetch(`${API_BASE}/api/bins/simple-qr-codes`);
+        if (!simpleResponse.ok) {
+            throw new Error('Cannot fetch bin data');
+        }
+        
+        const simpleData = await simpleResponse.json();
+        console.log('Simple QR data:', simpleData);
+        
+        // Now try the full QR codes endpoint
         const response = await fetch(`${API_BASE}/api/bins/qr-codes`);
         
         if (response.ok) {
@@ -1614,27 +1625,44 @@ async function generateAllQRCodes() {
             console.log('QR codes data received:', data);
             container.innerHTML = '';
             
-            data.qr_codes.forEach(qrData => {
-                const qrElement = createQRElement(qrData);
-                container.appendChild(qrElement);
-            });
-            
-            showNotification('✅ Permanent QR codes generated! These will never change.', 'success');
+            if (data.qr_codes && data.qr_codes.length > 0) {
+                data.qr_codes.forEach(qrData => {
+                    const qrElement = createQRElement(qrData);
+                    container.appendChild(qrElement);
+                });
+                showNotification(`✅ Generated ${data.qr_codes.length} QR codes!`, 'success');
+            } else {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #666;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                        <p>No QR codes generated</p>
+                        <p style="font-size: 0.8rem;">But found ${simpleData.bins.length} bins in system</p>
+                    </div>
+                `;
+            }
         } else {
             const errorText = await response.text();
             console.error('Server response error:', response.status, errorText);
-            throw new Error(`Server error: ${response.status}`);
+            
+            // Fallback: show bins without QR codes
+            container.innerHTML = '';
+            simpleData.bins.forEach(bin => {
+                const fallbackElement = createFallbackQRElement(bin);
+                container.appendChild(fallbackElement);
+            });
+            
+            showNotification('⚠️ Using fallback QR display - images not available', 'warning');
         }
     } catch (error) {
         console.error('Error loading QR codes:', error);
         showNotification('Failed to generate QR codes: ' + error.message, 'error');
         
-        // Fallback: show message to check backend
+        // Ultimate fallback
         container.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #666;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
                 <p>Unable to generate QR codes</p>
-                <p style="font-size: 0.8rem;">Please ensure backend is running on https://swachh-doot-2-o.onrender.com</p>
+                <p style="font-size: 0.8rem;">Error: ${error.message}</p>
                 <button class="control-btn" onclick="generateAllQRCodes()" style="margin-top: 1rem;">
                     <i class="fas fa-sync"></i> Try Again
                 </button>
@@ -1643,6 +1671,37 @@ async function generateAllQRCodes() {
     }
 }
 
+// Fallback element when QR images fail
+function createFallbackQRElement(bin) {
+    const div = document.createElement('div');
+    div.className = 'qr-code-item';
+    div.style.textAlign = 'center';
+    div.style.padding = '1.5rem';
+    div.style.background = 'white';
+    div.style.borderRadius = '12px';
+    div.style.border = '2px solid #e9ecef';
+    
+    div.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 0.8rem; font-size: 0.95rem; color: #2c3e50;">
+            ${bin.bin_name}
+        </div>
+        <div style="width: 140px; height: 140px; background: #f8f9fa; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+            <i class="fas fa-qrcode" style="font-size: 3rem; color: #ccc;"></i>
+        </div>
+        <div style="font-size: 0.8rem; color: #666; margin-top: 0.8rem;">
+            📱 QR Code Placeholder
+        </div>
+        <div style="font-size: 0.7rem; color: #999; margin-top: 0.3rem;">
+            Bin ID: ${bin.bin_id}
+        </div>
+        <button onclick="testQRScan('${bin.qr_data.replace(/'/g, "\\'")}')" 
+                style="margin-top: 0.8rem; padding: 0.4rem 0.8rem; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+            Test Scan
+        </button>
+    `;
+    
+    return div;
+}
 // Create QR code display element for permanent codes
 function createQRElement(qrData) {
     const div = document.createElement('div');

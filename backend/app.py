@@ -498,90 +498,145 @@ def health_check():
 # Add this function to generate permanent QR codes (PUT THIS AFTER THE MODELS)
 def generate_permanent_qr_code(bin_id, bin_name, bin_location):
     """Generate permanent QR code with static data that never changes"""
-    # Permanent data structure - this NEVER changes
-    qr_data = f"eco-guardian:bin:{bin_id}:{bin_name}:{bin_location}"
-    
-    # Generate QR code
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert to base64
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-    
-    return img_str, qr_data
-
-# Update your QR code endpoint (REPLACE THE EXISTING ONE)
-@app.route('/api/bin/<int:bin_id>/qr', methods=['GET'])
-def generate_bin_qr(bin_id):
     try:
-        bin = SmartBin.query.get(bin_id)
-        if not bin:
-            return jsonify({'error': 'Bin not found'}), 404
+        # Clean the data to avoid any encoding issues
+        clean_bin_name = bin_name.replace(':', '-') if bin_name else f"Bin-{bin_id}"
+        clean_location = bin_location.replace(':', '-') if bin_location else "Unknown-Location"
         
-        # Generate PERMANENT QR code - data never changes
-        qr_image, qr_data = generate_permanent_qr_code(
-            bin_id=bin.id,
-            bin_name=bin.name or f"Bin {bin.id}",
-            bin_location=bin.location
+        # Permanent data structure - this NEVER changes
+        qr_data = f"eco-guardian:bin:{bin_id}:{clean_bin_name}:{clean_location}"
+        
+        print(f"Generating QR for: {qr_data}")  # Debug log
+        
+        # Generate QR code with error handling
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=8,  # Reduced size for better compatibility
+            border=2,
         )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
         
-        return jsonify({
-            'status': 'success',
-            'bin_id': bin_id,
-            'bin_name': bin.name,
-            'qr_code': f"data:image/png;base64,{qr_image}",
-            'qr_data': qr_data,  # For debugging
-            'permanent': True  # Indicate this is permanent
-        })
+        # Create image with specific mode
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64 with proper error handling
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG', optimize=True)
+        buffer.seek(0)
+        
+        img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        print(f"✅ QR generated successfully for bin {bin_id}")  # Debug log
+        return img_str, qr_data
         
     except Exception as e:
-        logger.error(f"Error generating QR code: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Error in generate_permanent_qr_code for bin {bin_id}: {e}")
+        # Return a placeholder or raise the exception
+        raise e
 
 # Add endpoint to get all permanent QR codes at once (ADD THIS NEW ENDPOINT)
 @app.route('/api/bins/qr-codes', methods=['GET'])
 def get_all_qr_codes():
     try:
+        print("=== GET ALL QR CODES START ===")
+        
         bins = SmartBin.query.all()
+        print(f"Found {len(bins)} bins in database")
+        
+        if not bins:
+            return jsonify({
+                'status': 'success',
+                'qr_codes': [],
+                'count': 0,
+                'message': 'No bins found'
+            })
+        
         qr_codes = []
+        successful = 0
+        failed = 0
         
         for bin in bins:
-            qr_image, qr_data = generate_permanent_qr_code(
-                bin_id=bin.id,
-                bin_name=bin.name or f"Bin {bin.id}",
-                bin_location=bin.location
-            )
-            
-            qr_codes.append({
-                'bin_id': bin.id,
-                'bin_name': bin.name,
-                'location': bin.location,
-                'qr_code': f"data:image/png;base64,{qr_image}",
-                'qr_data': qr_data
-            })
+            try:
+                print(f"Generating QR for bin {bin.id}: {bin.name}")
+                
+                qr_image, qr_data = generate_permanent_qr_code(
+                    bin_id=bin.id,
+                    bin_name=bin.name or f"Bin {bin.id}",
+                    bin_location=bin.location
+                )
+                
+                qr_codes.append({
+                    'bin_id': bin.id,
+                    'bin_name': bin.name,
+                    'location': bin.location,
+                    'qr_code': f"data:image/png;base64,{qr_image}",
+                    'qr_data': qr_data
+                })
+                successful += 1
+                print(f"✅ Successfully generated QR for bin {bin.id}")
+                
+            except Exception as e:
+                failed += 1
+                logger.error(f"Failed to generate QR for bin {bin.id}: {e}")
+                print(f"❌ Failed to generate QR for bin {bin.id}: {e}")
+                # Continue with next bin instead of failing completely
+        
+        print(f"=== QR GENERATION COMPLETE: {successful} successful, {failed} failed ===")
         
         return jsonify({
             'status': 'success',
             'qr_codes': qr_codes,
             'count': len(qr_codes),
+            'successful': successful,
+            'failed': failed,
             'permanent': True
         })
         
     except Exception as e:
-        logger.error(f"Error generating all QR codes: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Error in get_all_qr_codes: {e}")
+        print(f"❌ CRITICAL ERROR in get_all_qr_codes: {e}")
+        return jsonify({
+            'error': 'Internal server error',
+            'details': str(e)
+        }), 500
+@app.route('/api/debug/qr-error', methods=['GET'])
+def debug_qr_error():
+    """Debug endpoint to identify QR code generation issue"""
+    try:
+        print("=== QR DEBUG START ===")
+        
+        # Test 1: Check if bins exist
+        bins = SmartBin.query.all()
+        print(f"Found {len(bins)} bins")
+        
+        # Test 2: Check if we can generate a single QR code
+        if bins:
+            test_bin = bins[0]
+            print(f"Testing with bin: {test_bin.id}, {test_bin.name}")
+            
+            try:
+                qr_image, qr_data = generate_permanent_qr_code(
+                    bin_id=test_bin.id,
+                    bin_name=test_bin.name or f"Bin {test_bin.id}",
+                    bin_location=test_bin.location
+                )
+                print("✅ QR generation successful")
+                return jsonify({
+                    'status': 'success',
+                    'message': 'QR generation works',
+                    'test_bin': test_bin.to_dict()
+                })
+            except Exception as e:
+                print(f"❌ QR generation failed: {e}")
+                return jsonify({'error': f'QR generation failed: {str(e)}'}), 500
+        else:
+            return jsonify({'error': 'No bins found'}), 404
+            
+    except Exception as e:
+        print(f"❌ Debug endpoint failed: {e}")
+        return jsonify({'error': f'Debug failed: {str(e)}'}), 500    
 # Quick complaint endpoint via QR scan
 @app.route('/api/complaint/quick', methods=['POST'])
 def quick_complaint():
