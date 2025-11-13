@@ -798,29 +798,17 @@ def update_complaint(complaint_id):
 @app.route('/complaint')
 def complaint_form():
     """Serve a simple complaint form when permanent QR is scanned"""
-    # Get data from permanent QR code format: eco-guardian:bin:1:Bharat Apartment:28.7402,77.1234
-    qr_data = request.args.get('qr_data', '')
+    # Get parameters from URL
+    bin_id = request.args.get('bin_id', 'Unknown')
+    bin_name = request.args.get('name', f'Bin #{bin_id}')
+    bin_location = request.args.get('location', 'Unknown location')
     
-    if qr_data:
-        # Parse permanent QR code data
-        parts = qr_data.split(':')
-        if len(parts) >= 5 and parts[0] == 'eco-guardian' and parts[1] == 'bin':
-            bin_id = parts[2]
-            bin_name = parts[3]
-            bin_location = ':'.join(parts[4:])  # Handle locations with colons
-        else:
-            # Fallback to old format
-            bin_id = request.args.get('bin_id', 'Unknown')
-            bin_location = request.args.get('location', 'Unknown location')
-            bin_name = request.args.get('name', f'Bin #{bin_id}')
-    else:
-        # Fallback to old parameters
-        bin_id = request.args.get('bin_id', 'Unknown')
-        bin_location = request.args.get('location', 'Unknown location')
-        bin_name = request.args.get('name', f'Bin #{bin_id}')
-    
-    # Get current server IP for API calls (this can change, but QR code doesn't)
-    current_server_ip = request.host
+    print(f"=== COMPLAINT FORM ACCESSED ===")
+    print(f"Bin ID: {bin_id}")
+    print(f"Bin Name: {bin_name}") 
+    print(f"Location: {bin_location}")
+    print(f"IP: {request.remote_addr}")
+    print("===============================")
     
     return f'''
     <!DOCTYPE html>
@@ -879,20 +867,26 @@ def complaint_form():
                 display: none;
                 margin-top: 20px;
             }}
-            .permanent-badge {{
-                background: #3498db;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 0.8rem;
-                margin-left: 10px;
-            }}
             h2 {{ color: #2c3e50; text-align: center; margin-bottom: 25px; }}
+            .debug-info {{
+                background: #e3f2fd;
+                padding: 10px;
+                border-radius: 5px;
+                font-size: 12px;
+                color: #1976d2;
+                margin-bottom: 15px;
+            }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>🚮 Report Bin Issue <span class="permanent-badge">Permanent QR</span></h2>
+            <h2>🚮 Report Bin Issue</h2>
+            
+            <div class="debug-info">
+                <strong>Debug Info:</strong><br>
+                Bin ID: {bin_id} | Name: {bin_name}<br>
+                Location: {bin_location}
+            </div>
             
             <div class="bin-info">
                 <strong>📦 Bin: {bin_name}</strong><br>
@@ -944,9 +938,11 @@ def complaint_form():
                     citizen_contact: formData.get('citizen_contact')
                 }};
                 
+                console.log('Submitting complaint:', complaintData);
+                
                 try {{
-                    // Use current server location - this can change but QR code doesn't
-                    const response = await fetch('http://{current_server_ip}/api/complaint/quick', {{
+                    // Use relative URL - will work on any domain
+                    const response = await fetch('/api/complaint/quick', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},
                         body: JSON.stringify(complaintData)
@@ -959,9 +955,15 @@ def complaint_form():
                         alert('Failed to submit complaint. Please try again.');
                     }}
                 }} catch (error) {{
+                    console.error('Error:', error);
                     alert('Network error. Please check your internet connection and try again.');
                 }}
             }});
+            
+            // Show a welcome message
+            setTimeout(() => {{
+                alert('🎉 Welcome to the complaint form! This bin info was auto-filled from the QR code.');
+            }}, 500);
         </script>
     </body>
     </html>
