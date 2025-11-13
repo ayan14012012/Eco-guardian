@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, url_for
+from flask import Flask, request, jsonify, url_for, render_template
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
@@ -13,7 +13,8 @@ import base64
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
+
 # Replace the current CORS setup with:
 CORS(app, resources={
     r"/api/*": {
@@ -30,7 +31,14 @@ CORS(app, resources={
 import os
 from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Endpoint not found", "status": "error"}), 404
 
 # Use environment variable for database URL with fallback
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db').replace('postgres://', 'postgresql://', 1)
@@ -228,7 +236,7 @@ def get_dashboard_data():
     except Exception as e:
         logger.error(f"Error in get_dashboard_data: {e}")
         return jsonify({'error': 'Internal server error', 'status': 'error'}), 500
-
+ 
 # Update a bin's fill level (This will be called by the ESP32)
 @app.route('/api/bin/<int:bin_id>', methods=['POST'])
 def update_bin_level(bin_id):
