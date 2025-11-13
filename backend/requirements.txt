@@ -3,4 +3,5 @@ Flask-Cors
 Flask-SQLAlchemy
 gunicorn
 requests
-qrcode
+qrcode[pil]
+Pillow
