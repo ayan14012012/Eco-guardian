@@ -535,7 +535,35 @@ def generate_permanent_qr_code(bin_id, bin_name, bin_location):
         logger.error(f"Error in generate_permanent_qr_code for bin {bin_id}: {e}")
         # Return a placeholder or raise the exception
         raise e
-
+# Add this simple QR codes endpoint BEFORE the get_all_qr_codes endpoint
+@app.route('/api/bins/simple-qr-codes', methods=['GET'])
+def get_simple_qr_codes():
+    """Simplified endpoint that returns bin info without QR codes"""
+    try:
+        bins = SmartBin.query.all()
+        
+        simple_qr_data = []
+        for bin in bins:
+            # Just return the data needed to generate QR codes on frontend
+            qr_data = f"eco-guardian:bin:{bin.id}:{bin.name or f'Bin {bin.id}'}:{bin.location}"
+            
+            simple_qr_data.append({
+                'bin_id': bin.id,
+                'bin_name': bin.name,
+                'location': bin.location,
+                'qr_data': qr_data,
+                'fill_level': bin.fill_level
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'bins': simple_qr_data,
+            'count': len(simple_qr_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_simple_qr_codes: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 # Add endpoint to get all permanent QR codes at once (ADD THIS NEW ENDPOINT)
 @app.route('/api/bins/qr-codes', methods=['GET'])
 def get_all_qr_codes():
