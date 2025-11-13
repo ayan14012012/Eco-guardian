@@ -14,16 +14,35 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Replace the current CORS setup with:
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://swachh-doot-2-o.onrender.com",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+}) # Enable CORS for all routes
 
-# Configure database (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+import os
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
+# Use environment variable for database URL with fallback
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db').replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Add connection pool settings for production
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
     'pool_pre_ping': True,
+    'pool_size': 10,
+    'max_overflow': 20,
 }
-
 db = SQLAlchemy(app)
 
 # Define Models
@@ -295,7 +314,22 @@ def test_connection():
         'message': 'Server is reachable!',
         'server_time': datetime.utcnow().isoformat()
     })
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all unhandled exceptions"""
+    logger.error(f"Unhandled exception: {str(e)}")
+    return jsonify({
+        'error': 'Internal server error',
+        'status': 'error',
+        'message': 'Something went wrong on our end'
+    }), 500
 
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'error': 'Endpoint not found',
+        'status': 'error'
+    }), 404
 # Create a new litter alert
 @app.route('/api/alert', methods=['POST'])
 def create_litter_alert():
