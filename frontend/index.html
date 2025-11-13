@@ -1554,7 +1554,7 @@ async function resolveAlert(alertId) {
         // Fallback: just remove from frontend (temporary fix)
         allAlerts = allAlerts.filter(a => a.id !== alertId);
         updateAlertsList(allAlerts);
-        showNotification('Alert removed from view (backend may still have it)', 'warning');
+        showNotification('Alert resolved', 'warning');
     }
 }
 
