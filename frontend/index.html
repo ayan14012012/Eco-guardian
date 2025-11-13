@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swachh Doot 2.O | Waste Management</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #3498db;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --gray: #95a5a6;
+            --card-bg: #ffffff;
+            --sidebar-bg: #34495e;
+            --background: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 2rem 1.5rem;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2.5rem;
+            animation: slideInLeft 0.6s ease;
+        }
+
+        .logo i {
+            font-size: 2.2rem;
+            color: var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        .logo h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .stats-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateX(5px);
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+
+        .bins-icon { background: var(--primary); }
+        .alerts-icon { background: var(--danger); }
+        .co2-icon { background: var(--secondary); }
+
+        .stat-info h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .stat-info p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        .header h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: rgb(234, 234, 234);
+        }
+
+        .live-badge {
+            background: var(--danger);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Map Container */
+        .map-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideInUp 0.8s ease;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .map-header h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        #map {
+            height: 500px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Data Panel */
+        .data-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: fadeInRight 0.8s ease;
+        }
+
+        .panel-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-card h3 i {
+            color: var(--primary);
+        }
+
+        /* Alert List */
+        .alert-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #alert-list {
+            list-style: none;
+        }
+
+        .alert-item {
+            background: linear-gradient(135deg, #ffeaa7, #fab1a0);
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            border-radius: 12px;
+            border-left: 4px solid var(--danger);
+            animation: slideInRight 0.5s ease;
+            transition: transform 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-item:hover {
+            transform: translateX(5px);
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-type {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .alert-location {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .alert-time {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .alert-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .alert-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            height: 200px;
+            margin: 1rem 0;
+        }
+
+        /* Bin Status Section */
+        .bin-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .bin-status-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .bin-status-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .bin-status-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .bin-status-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Controls */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Citizen Report Section */
+        .citizen-section {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .citizen-section h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .report-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .file-upload {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary);
+        }
+
+        .file-upload i {
+            font-size: 2rem;
+            color: var(--gray);
+            margin-bottom: 0.5rem;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, var(--secondary), #2980b9);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            grid-column: 1 / -1;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+        }
+
+        /* Alert Details Modal */
+        .alert-details {
+            margin-top: 1rem;
+        }
+
+        .alert-detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .alert-detail-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .alert-detail-value {
+            text-align: right;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Live data animation */
+        @keyframes highlight {
+            0% { background-color: transparent; }
+            50% { background-color: rgba(46, 204, 113, 0.2); }
+            100% { background-color: transparent; }
+        }
+
+        .live-update {
+            animation: highlight 1s ease;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .report-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .bin-status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            max-width: 300px;
+        }
+        
+        .notification.success {
+            background: var(--primary);
+        }
+        
+        .notification.error {
+            background: var(--danger);
+        }
+        
+        .notification.warning {
+            background: var(--warning);
+        }
+        
+        .notification.info {
+            background: var(--secondary);
+        }
+        
+        @keyframes fadeOutRight {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100px); }
+        }
+        /* Auto-refresh indicator */
+.auto-refresh-active {
+    position: relative;
+}
+
+.auto-refresh-active::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+/* Refresh animation */
+.fa-spin {
+    animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+/* QR Code Styles */
+.qr-code-item {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.qr-code-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.qr-complaint-btn {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.qr-complaint-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+/* Print styles for QR codes */
+@media print {
+    .qr-code-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+/* Add proper spacing for QR Code section */
+.panel-card + .panel-card {
+    margin-top: 2rem;
+}
+
+/* Specific spacing for QR code section */
+.panel-card:has(h3 i.fa-qrcode) {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Ensure citizen section has proper bottom margin */
+.citizen-section {
+    margin-bottom: 2rem !important;
+}
+    </style>
+</head>
+<body> <div class="container"> <!-- Sidebar --> <aside class="sidebar"> <div class="logo"> <i class="fas fa-leaf"></i> <h1>Swachh Doot 2.O</h1> </div>
+        <div class="stats-card">
+            <div class="stat-item">
+                <div class="stat-icon bins-icon">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 id="total-bins">0</h3>
+                    <p>Smart Bins</p>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <div class="stat-icon alerts-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 id="total-alerts">0</h3>
+                    <p>Active Alerts</p>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <div class="stat-icon co2-icon">
+                    <i class="fas fa-cloud"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 id="co2-saved">0%</h3>
+                    <p>CO2 Reduction</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h4 style="margin-bottom: 1rem; color: var(--primary);">System Status</h4>
+            <div class="status-item">
+                <i class="fas fa-circle-notch fa-spin" style="color: var(--primary);"></i>
+                <span>AI Detection: <strong>Active</strong></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                <span>API Connection: <strong id="api-status">Checking...</strong></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-satellite-dish" style="color: var(--primary);"></i>
+                <span>Last Update: <strong id="last-update">-</strong></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-camera" style="color: var(--primary);"></i>
+                <span>AI Cameras: <strong id="ai-cameras">124 Active</strong></span>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h4 style="margin-bottom: 1rem; color: var(--primary);">Public Reports</h4>
+            <div class="status-item">
+                <i class="fas fa-users" style="color: var(--primary);"></i>
+                <span>Today's Reports: <strong id="today-reports">0</strong></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                <span>Resolved: <strong id="resolved-reports">0</strong></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock" style="color: var(--warning);"></i>
+                <span>Pending: <strong id="pending-reports">0</strong></span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="header">
+            <h2>Rohini Sector-13 Cleanliness Dashboard</h2>
+            <div class="live-badge">
+                <i class="fas fa-circle"></i> LIVE
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Map Section -->
+            <div class="map-container">
+                <div class="map-header">
+                    <h3><i class="fas fa-map-marked-alt"></i> Rohini Sector-13 Map</h3>
+                    <div class="map-controls">
+                        <button class="control-btn" onclick="fetchDashboardData()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="data-panel">
+                <!-- Bin Status Card -->
+                <div class="panel-card">
+                    <h3><i class="fas fa-chart-pie"></i> Bin Status: <span id="selected-bin-name">Select a bin</span></h3>
+                    <div class="chart-container">
+                        <canvas id="bin-level-chart"></canvas>
+                    </div>
+                    <div class="bin-status-grid">
+                        <div class="bin-status-item">
+                            <div class="bin-status-value" id="normal-bins">0</div>
+                            <div class="bin-status-label">Normal</div>
+                        </div>
+                        <div class="bin-status-item">
+                            <div class="bin-status-value" id="warning-bins">0</div>
+                            <div class="bin-status-label">Warning</div>
+                        </div>
+                        <div class="bin-status-item">
+                            <div class="bin-status-value" id="critical-bins">0</div>
+                            <div class="bin-status-label">Critical</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Card -->
+                <div class="panel-card">
+                    <h3><i class="fas fa-bell"></i> Active Alerts</h3>
+                    <div class="alert-list">
+                        <ul id="alert-list">
+                            <li class="alert-item">
+                                <div class="alert-info">
+                                    <span class="alert-type">No active alerts</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Citizen Report Section -->
+        <div class="citizen-section">
+            <h3><i class="fas fa-users"></i> Citizen Reporting Portal</h3>
+            <div class="report-form">
+                <div class="form-group">
+                    <label for="report-type">Issue Type</label>
+                    <select id="report-type">
+                        <option value="">Select Issue Type</option>
+                        <option value="overflowing_bin">Overflowing Bin</option>
+                        <option value="illegal_dumping">Illegal Dumping</option>
+                        <option value="broken_bin">Broken Bin</option>
+                        <option value="missed_collection">Missed Collection</option>
+                        <option value="other">Other Issue</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="report-location">Location</label>
+                    <input type="text" id="report-location" placeholder="Enter address or location">
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="report-description">Description</label>
+                    <textarea id="report-description" placeholder="Please describe the issue in detail"></textarea>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label>Upload Evidence (Photos)</label>
+                    <div class="file-upload" onclick="document.getElementById('report-file').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click to upload photos or drag and drop</p>
+                        <input type="file" id="report-file" accept="image/*" multiple style="display: none;">
+                    </div>
+                    <div id="file-preview" style="margin-top: 10px;"></div>
+                </div>
+                
+                <button class="submit-btn" onclick="submitReport()">
+                    <i class="fas fa-paper-plane"></i> Submit Report
+                </button>
+            </div>
+        </div>
+<!-- Add this modal for QR complaints -->
+<div class="modal" id="qr-complaint-modal">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeModal('qr-complaint-modal')">&times;</button>
+        <h2><i class="fas fa-qrcode"></i> Quick Bin Complaint</h2>
+        
+        <div id="qr-complaint-form">
+            <div class="form-group">
+                <label>Bin Information</label>
+                <div id="bin-info" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <strong id="complaint-bin-name">Loading bin info...</strong>
+                    <div id="complaint-bin-location"></div>
+                    <div id="complaint-bin-status"></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="complaint-type">Issue Type</label>
+                <select id="complaint-type">
+                    <option value="overflowing">Overflowing Bin</option>
+                    <option value="damaged">Damaged Bin</option>
+                    <option value="missing">Missing Bin</option>
+                    <option value="odor">Bad Odor</option>
+                    <option value="pests">Pests Around Bin</option>
+                    <option value="other">Other Issue</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="complaint-description">Description (Optional)</label>
+                <textarea id="complaint-description" placeholder="Briefly describe the issue..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="citizen-contact">Contact Info (Optional)</label>
+                <input type="text" id="citizen-contact" placeholder="Email or phone for updates">
+            </div>
+            
+            <button class="submit-btn" onclick="submitQRComplaint()">
+                <i class="fas fa-paper-plane"></i> Submit Complaint
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add QR Code Display Section -->
+<div class="panel-card">
+    <h3><i class="fas fa-qrcode"></i> Bin QR Codes</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;" id="qr-codes-container">
+        <!-- QR codes will be generated here -->
+    </div>
+    <button class="control-btn" onclick="generateAllQRCodes()" style="margin-top: 1rem;">
+        <i class="fas fa-sync"></i> Generate QR Codes
+    </button>
+</div>
+        <!-- Quick Actions -->
+        <div class="controls">
+            <button class="control-btn" onclick="simulateAlert()" id="test-alert-btn">
+                <i class="fas fa-plus"></i> Test Alert
+            </button>
+            <button class="control-btn" onclick="optimizeRoutes()" id="optimize-btn">
+                <i class="fas fa-route"></i> Optimize Routes
+            </button>
+            <button class="control-btn" onclick="clearNavigationRoute()" id="clear-route-btn">
+    <i class="fas fa-times"></i> Clear Route
+</button>
+            <button class="control-btn" onclick="generateReport()" id="report-btn">
+                <i class="fas fa-file-pdf"></i> Generate Report
+            </button>
+            <button class="control-btn" onclick="clearAllAlerts()" id="clear-alerts-btn">
+                <i class="fas fa-trash"></i> Clear All Alerts
+            </button>
+            <button class="control-btn" onclick="viewPublicReports()" id="reports-btn">
+                <i class="fas fa-list"></i> View Reports
+            </button>
+        </div>
+    </main>
+</div>
+
+<!-- Public Reports Modal -->
+<div class="modal" id="reports-modal">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeModal('reports-modal')">&times;</button>
+        <h2><i class="fas fa-list"></i> Public Reports</h2>
+        <div id="reports-list" style="margin-top: 1rem;">
+            <!-- Reports will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal" id="alert-details-modal">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeModal('alert-details-modal')">&times;</button>
+        <h2><i class="fas fa-info-circle"></i> Alert Details</h2>
+        <div class="alert-details" id="alert-details-content">
+            <!-- Alert details will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Your CSS remains here - I'm focusing on the JavaScript fix -->
+
+    <script>
+        let autoRefreshInterval;
+        const { jsPDF } = window.jspdf;
+
+        // Global variables
+        let map, binChart;
+        let allBins = [];
+        let allAlerts = [];
+        let publicReports = [];
+        let binMarkers = {}; // Object to store bin markers by ID
+
+        // Initialize map - Focus on Rohini Sector-13
+        function initMap() {
+            // Rohini Sector-13 coordinates: 28.7402, 77.1234
+            map = L.map('map').setView([28.7402, 77.1234], 16);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            return map;
+        }
+
+        // Add or update bin on map
+        function addBinToMap(bin) {
+            const [lat, lng] = bin.location.split(',').map(Number);
+            
+            // Determine color based on fill level
+            let color = '#2ecc71'; // Green
+            if (bin.fill_level > 80) color = '#e74c3c'; // Red
+            else if (bin.fill_level > 60) color = '#f39c12'; // Orange
+            
+            // Create a custom icon
+            const iconHtml = `
+                <div style="
+                    background-color: ${color};
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: bold;
+                    border: 3px solid white;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                ">${bin.fill_level.toFixed(0)}%</div>
+            `;
+            
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'bin-marker',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            
+            // If marker already exists, update it
+            if (binMarkers[bin.id]) {
+                binMarkers[bin.id].setIcon(customIcon);
+                binMarkers[bin.id].setLatLng([lat, lng]);
+                
+                // Update popup content
+                const binName = bin.name || `Smart Bin #${bin.id}`;
+                binMarkers[bin.id].setPopupContent(`
+                    <div style="min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0;">${binName}</h3>
+                        <p><strong>Fill Level:</strong> ${bin.fill_level.toFixed(0)}%</p>
+                        <p><strong>Status:</strong> ${bin.fill_level > 80 ? 'Needs Immediate Attention' : bin.fill_level > 60 ? 'Getting Full' : 'Normal'}</p>
+                        <button style="width: 100%; margin-top: 10px; padding: 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;" 
+                                onclick="selectBin(${bin.id})">View Details</button>
+                    </div>
+                `);
+            } else {
+                // Create new marker
+                const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+                
+                // Add popup with bin information
+                const binName = bin.name || `Smart Bin #${bin.id}`;
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0;">${binName}</h3>
+                        <p><strong>Fill Level:</strong> ${bin.fill_level.toFixed(0)}%</p>
+                        <p><strong>Status:</strong> ${bin.fill_level > 80 ? 'Needs Immediate Attention' : bin.fill_level > 60 ? 'Getting Full' : 'Normal'}</p>
+                        <button style="width: 100%; margin-top: 10px; padding: 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;" 
+                                onclick="selectBin(${bin.id})">View Details</button>
+                    </div>
+                `);
+                
+                // Store the marker reference
+                binMarkers[bin.id] = marker;
+            }
+            
+            return binMarkers[bin.id];
+        }
+
+        // Fetch data from your Flask backend
+        async function fetchDashboardData() {
+            try {
+                // Show loading spinner
+                document.querySelector('.live-badge i').classList.add('fa-spin');
+
+                // Choose API base (dynamic or fallback)
+                const API_BASE = (location.hostname && location.protocol.startsWith('http')) 
+                    ? `${location.protocol}//${location.hostname}:5000` 
+                    : 'http://192.168.2.100:5000';
+
+                const response = await fetch(`${API_BASE}/api/dashboard`, { cache: "no-store" });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update the real bin (ID: 1) with actual data if available
+                    if (data.bins && data.bins.length > 0) {
+                        const realBin = data.bins.find(bin => bin.id === 1);
+                        if (realBin) {
+                            // Update or add the real bin
+                            const existingBinIndex = allBins.findIndex(bin => bin.id === 1);
+                            if (existingBinIndex !== -1) {
+                                allBins[existingBinIndex] = realBin;
+                            } else {
+                                allBins.push(realBin);
+                            }
+                        }
+                    }
+                    
+                    // Update alerts
+                    // Update alerts - merge with existing alerts instead of replacing
+if (data.alerts) {
+    // Keep track of alert IDs we've already seen
+    const existingAlertIds = new Set(allAlerts.map(alert => alert.id));
+    
+    // Add new alerts that we haven't seen before
+    data.alerts.forEach(newAlert => {
+        if (!existingAlertIds.has(newAlert.id)) {
+            allAlerts.push(newAlert);
+            // Show notification for new alerts
+            const alertTypeText = {
+                'overflowing_bin': 'Overflowing Bin',
+                'illegal_dumping': 'Illegal Dumping',
+                'broken_bin': 'Broken Bin',
+                'ai_detection': 'AI Detection',
+                'citizen_report': 'Citizen Report'
+            }[newAlert.type] || newAlert.type;
+            
+            showNotification(`🚨 New ${alertTypeText} detected`, 'warning');
+        }
+    });
+    
+  
+}
+
+                    document.getElementById("api-status").textContent = "Connected";
+                    document.getElementById("api-status").style.color = "var(--primary)";
+                } else {
+                    throw new Error("Failed to fetch dashboard");
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById("api-status").textContent = "Disconnected";
+                document.getElementById("api-status").style.color = "var(--danger)";
+                
+                // Use simulated data as fallback
+                updateSimulatedBins();
+            } finally {
+                // Always update simulated bins and UI
+                updateSimulatedBins();
+                allBins.forEach(bin => addBinToMap(bin));
+                updateStats(allBins, allAlerts);
+                updateAlertsList(allAlerts);
+                
+                document.querySelector('.live-badge i').classList.remove('fa-spin');
+            }
+        }
+
+        function updateSimulatedBins() {
+    // Keep the real bin (ID: 1) as is and update simulated bins
+    const realBin = allBins.find(bin => bin.id === 1);
+    allBins = realBin ? [realBin] : [];
+    
+    // Add/update simulated bins with random fill levels
+    const locations = [
+        { id: 2, coords: "28.7415,77.1220", name: "Sector-13 Park" },
+        { id: 3, coords: "28.7390,77.1245", name: "Community Center" },
+        { id: 4, coords: "28.7385,77.1210", name: "Market Area" },
+        { id: 5, coords: "28.7420,77.1250", name: "School Road" },
+        { id: 6, coords: "28.7365,77.1235", name: "Residential Block A" },
+        { id: 7, coords: "28.7430,77.1205", name: "Residential Block B" },
+        { id: 8, coords: "28.7370,77.1260", name: "Shopping Complex" },
+        { id: 9, coords: "28.7440,77.1240", name: "Main Road" }
+    ];
+    
+    locations.forEach(location => {
+        // Find existing bin or create new one
+        const existingBinIndex = allBins.findIndex(bin => bin.id === location.id);
+        
+        if (existingBinIndex !== -1) {
+            // Update existing bin with small random change (only if it's not the real bin)
+            if (allBins[existingBinIndex].id !== 1) {
+                // FIXED: More realistic and gradual changes
+                const currentLevel = allBins[existingBinIndex].fill_level;
+                
+                // Determine change based on current fill level
+                let change;
+                if (currentLevel < 30) {
+                    // Slow fill when mostly empty: 0.5% to 2%
+                    change = (Math.random() * 1.5 + 0.5).toFixed(1);
+                } else if (currentLevel < 70) {
+                    // Medium fill: -0.5% to +1.5%
+                    change = (Math.random() * 2 - 0.5).toFixed(1);
+                } else if (currentLevel < 90) {
+                    // Slower fill when getting full: -1% to +1%
+                    change = (Math.random() * 2 - 1).toFixed(1);
+                } else {
+                    // Very slow change when nearly full: -0.5% to +0.5%
+                    change = (Math.random() * 1 - 0.5).toFixed(1);
+                }
+                
+                // Apply the change
+                allBins[existingBinIndex].fill_level = Math.max(0, 
+                    Math.min(100, currentLevel + parseFloat(change)));
+                
+                // Make bins more likely to fill up than empty (realistic behavior)
+                if (Math.random() > 0.6 && currentLevel < 95) {
+                    allBins[existingBinIndex].fill_level += 0.3;
+                }
+                
+                // If bin is nearly full, small chance of bigger increase
+                if (currentLevel > 85 && Math.random() > 0.9) {
+                    allBins[existingBinIndex].fill_level += 2;
+                }
+                
+                // Ensure values stay within bounds
+                allBins[existingBinIndex].fill_level = Math.max(0, 
+                    Math.min(100, allBins[existingBinIndex].fill_level));
+            }
+        } else {
+            // FIXED: Create new bin with more realistic initial fill level
+            // Most bins start between 20-60% full, not completely random
+            const initialFill = Math.floor(Math.random() * 40) + 20; // 20-60% initial fill
+            allBins.push({
+                id: location.id,
+                fill_level: initialFill,
+                location: location.coords,
+                name: location.name
+            });
+        }
+    });
+}
+
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('bin-level-chart').getContext('2d');
+            binChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Remaining'],
+                    datasets: [{
+                        data: [75, 25],
+                        backgroundColor: [
+                            '#2ecc71',
+                            '#ecf0f1'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+            return binChart;
+        }
+
+        // Select a bin to view details
+        function selectBin(binId) {
+            const bin = allBins.find(b => b.id === binId);
+            if (bin) {
+                const binName = bin.name || `Bin #${bin.id}`;
+                document.getElementById('selected-bin-name').textContent = binName;
+                
+                // Update chart
+                binChart.data.datasets[0].data = [bin.fill_level, 100 - bin.fill_level];
+                binChart.update();
+                
+                showNotification(`Viewing details for ${binName}`, 'info');
+            }
+        }
+
+        // Update stats function
+        function updateStats(bins, alerts) {
+            // Add live update animation
+            document.getElementById('total-bins').classList.add('live-update');
+            document.getElementById('total-alerts').classList.add('live-update');
+            document.getElementById('co2-saved').classList.add('live-update');
+            
+            setTimeout(() => {
+                document.getElementById('total-bins').classList.remove('live-update');
+                document.getElementById('total-alerts').classList.remove('live-update');
+                document.getElementById('co2-saved').classList.remove('live-update');
+            }, 1000);
+            
+            document.getElementById('total-bins').textContent = bins.length;
+            document.getElementById('total-alerts').textContent = alerts.length;
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            
+            // Calculate CO2 reduction based on actual efficiency
+            const totalBins = bins.length;
+            const totalAlerts = alerts.length;
+            const avgFillLevel = totalBins > 0 ? bins.reduce((sum, bin) => sum + bin.fill_level, 0) / totalBins : 0;
+            
+            // More realistic CO2 calculation
+            const co2Reduction = Math.min(100, Math.floor(
+                (totalBins * 2) + // Base from bins
+                (totalAlerts * 1.5) + // From alerts cleared
+                (avgFillLevel * 0.3) // Efficiency from proper management
+            ));
+            
+            document.getElementById('co2-saved').textContent = co2Reduction + '%';
+            
+            // Update bin status counts
+            const normalBins = bins.filter(bin => bin.fill_level <= 60).length;
+            const warningBins = bins.filter(bin => bin.fill_level > 60 && bin.fill_level <= 80).length;
+            const criticalBins = bins.filter(bin => bin.fill_level > 80).length;
+            
+            document.getElementById('normal-bins').textContent = normalBins;
+            document.getElementById('warning-bins').textContent = warningBins;
+            document.getElementById('critical-bins').textContent = criticalBins;
+            
+            // Update API status
+            document.getElementById('api-status').textContent = 'Connected';
+            document.getElementById('api-status').style.color = 'var(--primary)';
+        }
+
+        // Test Alert Function
+        async function simulateAlert() {
+            const btn = document.getElementById('test-alert-btn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<span class="spinner"></span> Creating...';
+            btn.disabled = true;
+            
+            // Simulate API call with timeout
+            setTimeout(() => {
+                // Create a sample alert
+                const alert = {
+                    id: Date.now(),
+                    type: 'illegal_dumping',
+                    location: '28.740' + (Math.random() * 0.01).toFixed(4) + ',77.123' + (Math.random() * 0.01).toFixed(4),
+                    confidence: (0.8 + Math.random() * 0.19).toFixed(2),
+                    timestamp: new Date().toISOString(),
+                    source: 'ai_camera',
+                    description: 'Test alert generated by the system in Rohini Sector-13'
+                };
+                
+                allAlerts.push(alert);
+                updateAlertsList(allAlerts);
+                
+                showNotification('✅ Test alert created successfully!', 'success');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        // Update alerts list
+        function updateAlertsList(alerts) {
+            const alertList = document.getElementById('alert-list');
+            alertList.innerHTML = '';
+            
+            if (alerts.length === 0) {
+                alertList.innerHTML = '<li class="alert-item"><div class="alert-info"><span class="alert-type">No active alerts</span></div></li>';
+            } else {
+                alerts.forEach(alert => {
+                    const li = document.createElement('li');
+                    li.className = 'alert-item';
+                    
+                    const alertTypeText = {
+                        'overflowing_bin': 'Overflowing Bin',
+                        'illegal_dumping': 'Illegal Dumping',
+                        'broken_bin': 'Broken Bin',
+                        'ai_detection': 'AI Detection',
+                        'citizen_report': 'Citizen Report'
+                    }[alert.type] || alert.type;
+                    
+                    li.innerHTML = `
+                        <div class="alert-info">
+                            <span class="alert-type">${alertTypeText}</span>
+                            <span class="alert-location">${alert.location}</span>
+                            <span class="alert-time">${new Date(alert.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="alert-actions">
+                            <button class="alert-btn" onclick="viewAlertDetails(${alert.id})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="alert-btn" onclick="resolveAlert(${alert.id})" title="Mark as Resolved">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    alertList.appendChild(li);
+                });
+            }
+            
+            // Update stats
+            document.getElementById('total-alerts').textContent = alerts.length;
+        }
+
+// View alert details
+function viewAlertDetails(alertId) {
+    const alert = allAlerts.find(a => a.id === alertId);
+    if (alert) {
+        const modal = document.getElementById('alert-details-modal');
+        const content = document.getElementById('alert-details-content');
+        
+        const alertTypeText = {
+            'overflowing_bin': 'Overflowing Bin',
+            'illegal_dumping': 'Illegal Dumping',
+            'broken_bin': 'Broken Bin',
+            'ai_detection': 'AI Detection',
+            'citizen_report': 'Citizen Report',
+            // ADD THESE QR COMPLAINT TYPES:
+            'overflowing': 'Overflowing Bin',
+            'damaged': 'Damaged Bin',
+            'missing': 'Missing Bin', 
+            'odor': 'Bad Odor',
+            'pests': 'Pests Around Bin',
+            'other': 'Other Issue'
+        }[alert.type] || alert.type;
+        
+        content.innerHTML = `
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Type:</span>
+                <span class="alert-detail-value">${alertTypeText}</span>
+            </div>
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Location:</span>
+                <span class="alert-detail-value">${alert.location}</span>
+            </div>
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Confidence:</span>
+                <span class="alert-detail-value">${(alert.confidence * 100).toFixed(1)}%</span>
+            </div>
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Time:</span>
+                <span class="alert-detail-value">${new Date(alert.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Source:</span>
+                <span class="alert-detail-value">${alert.source}</span>
+            </div>
+            ${alert.description ? `
+            <div class="alert-detail-item">
+                <span class="alert-detail-label">Description:</span>
+                <span class="alert-detail-value">${alert.description}</span>
+            </div>
+            ` : ''}
+        `;
+        
+        modal.style.display = 'flex';
+    }
+}
+// Resolve alert - UPDATED to call backend
+async function resolveAlert(alertId) {
+    try {
+        const API_BASE = 'http://192.168.2.100:5000';
+        const response = await fetch(`${API_BASE}/api/alert/${alertId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // Remove from frontend array
+            allAlerts = allAlerts.filter(a => a.id !== alertId);
+            updateAlertsList(allAlerts);
+            showNotification('✅ Alert resolved and removed permanently', 'success');
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to resolve alert');
+        }
+    } catch (error) {
+        console.error('Error resolving alert:', error);
+        showNotification('Failed to resolve alert: ' + error.message, 'error');
+        
+        // Fallback: just remove from frontend (temporary fix)
+        allAlerts = allAlerts.filter(a => a.id !== alertId);
+        updateAlertsList(allAlerts);
+        showNotification('Alert removed from view (backend may still have it)', 'warning');
+    }
+}
+
+        // Enhanced Optimize Routes Function - FIXED
+        async function optimizeRoutes() {
+            const btn = document.getElementById('optimize-btn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<span class="spinner"></span> Optimizing...';
+            btn.disabled = true;
+            
+            try {
+                // Get bins that need attention (fill level > 70%)
+                const binsNeedingService = allBins.filter(bin => bin.fill_level > 70);
+                
+                if (binsNeedingService.length === 0) {
+                    showNotification('No bins currently need service', 'info');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+                
+                // Simulate API call to optimization service
+                const optimizedRoutes = await simulateRouteOptimization(binsNeedingService);
+                
+                // Highlight bins on map
+                highlightOptimizedBins(binsNeedingService);
+                
+                // Display the optimized routes
+                displayOptimizedRoutes(optimizedRoutes);
+                
+                showNotification(`✅ Routes optimized! ${optimizedRoutes.efficiencyGain}% efficiency gain.`, 'success');
+            } catch (error) {
+                console.error('Route optimization error:', error);
+                showNotification('Failed to optimize routes', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+// QR Code System - Fixed Version with Permanent QR Codes
+let currentQRBinId = null;
+
+// Generate ALL QR codes at once using the new endpoint
+async function generateAllQRCodes() {
+    const container = document.getElementById('qr-codes-container');
+    container.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner"></div><br>Generating permanent QR codes...</div>';
+    
+    try {
+        const API_BASE = 'http://192.168.2.100:5000';
+        console.log('Fetching all QR codes at once...');
+        
+        const response = await fetch(`${API_BASE}/api/bins/qr-codes`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('QR codes data received:', data);
+            container.innerHTML = '';
+            
+            data.qr_codes.forEach(qrData => {
+                const qrElement = createQRElement(qrData);
+                container.appendChild(qrElement);
+            });
+            
+            showNotification('✅ Permanent QR codes generated! These will never change.', 'success');
+        } else {
+            const errorText = await response.text();
+            console.error('Server response error:', response.status, errorText);
+            throw new Error(`Server error: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error loading QR codes:', error);
+        showNotification('Failed to generate QR codes: ' + error.message, 'error');
+        
+        // Fallback: show message to check backend
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                <p>Unable to generate QR codes</p>
+                <p style="font-size: 0.8rem;">Please ensure backend is running on http://192.168.2.100:5000</p>
+                <button class="control-btn" onclick="generateAllQRCodes()" style="margin-top: 1rem;">
+                    <i class="fas fa-sync"></i> Try Again
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Create QR code display element for permanent codes
+function createQRElement(qrData) {
+    const div = document.createElement('div');
+    div.className = 'qr-code-item';
+    div.style.textAlign = 'center';
+    div.style.padding = '1.5rem';
+    div.style.background = 'white';
+    div.style.borderRadius = '12px';
+    div.style.border = '2px solid #e9ecef';
+    div.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    
+    // Parse the permanent QR data to get bin info
+    const parts = qrData.qr_data.split(':');
+    const binId = parts[2];
+    const binName = parts[3];
+    const binLocation = parts.slice(4).join(':');
+    
+    div.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 0.8rem; font-size: 0.95rem; color: #2c3e50;">
+            ${binName}
+        </div>
+        <img src="${qrData.qr_code}" 
+             alt="QR Code for ${binName}" 
+             style="width: 140px; height: 140px; border: 2px solid #ddd; border-radius: 8px;">
+        <div style="font-size: 0.8rem; color: #666; margin-top: 0.8rem;">
+            📱 Permanent QR Code
+        </div>
+        <div style="font-size: 0.7rem; color: #999; margin-top: 0.3rem;">
+            Bin ID: ${binId}
+        </div>
+        <button onclick="handleQRScan('${qrData.qr_data.replace(/'/g, "\\'")}')" 
+                style="margin-top: 0.8rem; padding: 0.4rem 0.8rem; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+            Test Scan
+        </button>
+    `;
+    
+    return div;
+}
+
+// Handle QR code scanning for permanent codes
+function handleQRScan(qrData) {
+    // Parse the permanent QR code data
+    // Format: "eco-guardian:bin:1:Bharat Apartment:28.7402,77.1234"
+    const parts = qrData.split(':');
+    
+    if (parts.length >= 5 && parts[0] === 'eco-guardian' && parts[1] === 'bin') {
+        const binId = parts[2];
+        const binName = parts[3];
+        const binLocation = parts.slice(4).join(':'); // Handle locations with colons
+        
+        // Open complaint modal with bin info
+        openQRComplaintModal(binId, binName, binLocation);
+    } else {
+        showNotification('Invalid QR code format', 'error');
+    }
+}
+
+// Open complaint modal with bin info
+function openQRComplaintModal(binId, binName, binLocation) {
+    currentQRBinId = binId;
+    
+    document.getElementById('complaint-bin-name').textContent = binName;
+    document.getElementById('complaint-bin-location').textContent = `Location: ${binLocation}`;
+    document.getElementById('complaint-bin-location').style.fontSize = '0.9rem';
+    document.getElementById('complaint-bin-location').style.color = '#666';
+    
+    // Find current fill level if available
+    const bin = allBins.find(b => b.id == binId);
+    if (bin) {
+        document.getElementById('complaint-bin-status').innerHTML = 
+            `Current Fill Level: <strong>${bin.fill_level}%</strong>`;
+        document.getElementById('complaint-bin-status').style.fontSize = '0.9rem';
+        document.getElementById('complaint-bin-status').style.color = bin.fill_level > 80 ? '#e74c3c' : '#2ecc71';
+    } else {
+        document.getElementById('complaint-bin-status').innerHTML = 
+            `Current Fill Level: <strong>Unknown</strong>`;
+    }
+    
+    document.getElementById('qr-complaint-modal').style.display = 'flex';
+}
+
+// Submit QR complaint from modal (KEEP THIS FUNCTION AS IS)
+async function submitQRComplaint() {
+    const complaintType = document.getElementById('complaint-type').value;
+    const description = document.getElementById('complaint-description').value;
+    const contact = document.getElementById('citizen-contact').value;
+    
+    if (!currentQRBinId) {
+        showNotification('No bin selected', 'error');
+        return;
+    }
+    
+    if (!complaintType) {
+        showNotification('Please select an issue type', 'error');
+        return;
+    }
+    
+    try {
+        const API_BASE = 'http://192.168.2.100:5000';
+        const response = await fetch(`${API_BASE}/api/complaint/quick`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                bin_id: parseInt(currentQRBinId),
+                complaint_type: complaintType,
+                description: description,
+                citizen_contact: contact
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('✅ Complaint submitted successfully!', 'success');
+            closeModal('qr-complaint-modal');
+            
+            // Refresh alerts to show new complaint
+            fetchDashboardData();
+            
+            // Clear form
+            document.getElementById('complaint-type').value = '';
+            document.getElementById('complaint-description').value = '';
+            document.getElementById('citizen-contact').value = '';
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to submit complaint');
+        }
+    } catch (error) {
+        console.error('Error submitting complaint:', error);
+        showNotification('Failed to submit complaint: ' + error.message, 'error');
+    }
+}
+
+// Remove the old testQRComplaint function and replace with this:
+function testQRScan(binId) {
+    // Create a test permanent QR data for the bin
+    const bin = allBins.find(b => b.id === binId);
+    if (bin) {
+        const qrData = `eco-guardian:bin:${bin.id}:${bin.name || `Bin ${bin.id}`}:${bin.location}`;
+        handleQRScan(qrData);
+    }
+}
+
+// Auto-generate QR codes when bins are loaded
+function initializeQRCodes() {
+    // Generate QR codes 3 seconds after page load
+    setTimeout(() => {
+        if (allBins && allBins.length > 0) {
+            generateAllQRCodes();
+        } else {
+            // Try again after 2 more seconds if bins aren't loaded
+            setTimeout(() => {
+                if (allBins && allBins.length > 0) {
+                    generateAllQRCodes();
+                }
+            }, 2000);
+        }
+    }, 3000);
+}
+        // Simulate route optimization algorithm
+        async function simulateRouteOptimization(bins) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Group bins by area (simple simulation)
+                    const northBins = bins.filter(bin => {
+                        const lat = parseFloat(bin.location.split(',')[0]);
+                        return lat > 28.7402;
+                    });
+                    
+                    const southBins = bins.filter(bin => {
+                        const lat = parseFloat(bin.location.split(',')[0]);
+                        return lat <= 28.7402;
+                    });
+                    
+                    // Calculate efficiency gain based on number of bins and their fill levels
+                    const totalFill = bins.reduce((sum, bin) => sum + bin.fill_level, 0);
+                    const efficiencyGain = Math.min(35, Math.floor(totalFill / bins.length / 3) + bins.length);
+                    
+                    resolve({
+                        routes: [
+                            {
+                                id: 1,
+                                name: "North Route",
+                                bins: northBins,
+                                estimatedTime: Math.round(northBins.length * 12) + ' min',
+                                distance: Math.round(northBins.length * 2.5) + ' km'
+                            },
+                            {
+                                id: 2,
+                                name: "South Route",
+                                bins: southBins,
+                                estimatedTime: Math.round(southBins.length * 12) + ' min',
+                                distance: Math.round(southBins.length * 2.5) + ' km'
+                            }
+                        ],
+                        efficiencyGain: efficiencyGain,
+                        totalBins: bins.length,
+                        priorityBins: bins.filter(bin => bin.fill_level > 85).length
+                    });
+                }, 2000);
+            });
+        }
+
+        // Display optimized routes in a modal
+        function displayOptimizedRoutes(optimizationResult) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px;">
+                    <button class="close-modal" onclick="this.parentElement.parentElement.remove()">&times;</button>
+                    <h2><i class="fas fa-route"></i> Optimized Collection Routes</h2>
+                    
+                    <div style="display: flex; justify-content: space-between; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                        <div>
+                            <div style="font-size: 0.9rem; color: #666;">Efficiency Gain</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: #27ae60;">${optimizationResult.efficiencyGain}%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.9rem; color: #666;">Bins to Service</div>
+                            <div style="font-size: 1.8rem; font-weight: bold;">${optimizationResult.totalBins}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.9rem; color: #666;">Priority Bins</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: #e74c3c;">${optimizationResult.priorityBins}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="routes-container">
+                        ${optimizationResult.routes.map(route => `
+                            <div class="route-card">
+                                <h3>${route.name}</h3>
+                                <div style="display: flex; justify-content: space-between; margin: 10px 0;">
+                                    <span><i class="fas fa-stopwatch"></i> ${route.estimatedTime}</span>
+                                    <span><i class="fas fa-road"></i> ${route.distance}</span>
+                                    <span><i class="fas fa-trash"></i> ${route.bins.length} bins</span>
+                                </div>
+                                <div class="bin-list">
+                                    ${route.bins.map(bin => `
+                                        <div class="bin-item">
+                                            <span class="bin-id">${bin.name || `Bin #${bin.id}`}</span>
+                                            <span class="bin-fill" style="color: ${bin.fill_level > 85 ? '#e74c3c' : '#f39c12'};">${bin.fill_level}% full</span>
+                                            <span class="bin-location">${bin.location}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <button class="control-btn" style="margin-top: 20px; width: 100%;" onclick="startNavigation(${JSON.stringify(optimizationResult).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-play"></i> Start Navigation
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add CSS for the route display
+    const style = document.createElement('style');
+    style.textContent = `
+        .routes-container {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .route-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+        .route-card h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .bin-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .bin-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .bin-item:last-child {
+            border-bottom: none;
+        }
+        .bin-id {
+            font-weight: 600;
+            width: 120px;
+        }
+        .bin-fill {
+            width: 70px;
+            text-align: right;
+        }
+        .bin-location {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    `;
+    document.head.appendChild(style);
+}
+// Start navigation for the optimized routes
+// Start navigation for the optimized routes (Leaflet version)
+// Start navigation for the optimized routes (simpler version)
+function startNavigation() {
+    // Get bins that need attention (fill level > 70%)
+    const binsNeedingService = allBins.filter(bin => bin.fill_level > 70);
+    
+    if (binsNeedingService.length === 0) {
+        showNotification('No bins currently need service. Try optimizing routes first.', 'error');
+        return;
+    }
+    
+    // Create waypoints for the route
+    const waypoints = binsNeedingService.map(bin => {
+        const [lat, lng] = bin.location.split(',').map(Number);
+        return L.latLng(lat, lng);
+    });
+    
+    // Clear any existing route
+    clearNavigationRoute();
+    
+    // Create a polyline to show the route
+    window.currentRoute = L.polyline(waypoints, {
+        color: '#3498db',
+        weight: 5,
+        opacity: 0.7,
+        dashArray: '10, 10'
+    }).addTo(map);
+    
+    // Add markers for each bin in the route
+    binsNeedingService.forEach((bin, index) => {
+        const [lat, lng] = bin.location.split(',').map(Number);
+        const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                html: `<div style="background-color: #3498db; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);">${index + 1}</div>`,
+                className: 'route-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            })
+        }).addTo(map);
+        
+        marker.bindPopup(`
+            <div style="min-width: 200px;">
+                <h3 style="margin: 0 0 10px 0;">Stop #${index + 1}: ${bin.name || `Bin #${bin.id}`}</h3>
+                <p><strong>Fill Level:</strong> ${bin.fill_level}%</p>
+                <p><strong>Status:</strong> ${bin.fill_level > 80 ? 'Needs Immediate Attention' : bin.fill_level > 60 ? 'Getting Full' : 'Normal'}</p>
+            </div>
+        `);
+    });
+    
+    // Fit map to show the entire route
+    map.fitBounds(window.currentRoute.getBounds().pad(0.1));
+    
+    showNotification('🚚 Navigation route displayed on map', 'success');
+    
+    // Close the modal if open
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+// Highlight optimized bins on the map
+function highlightOptimizedBins(bins) {
+    // Clear existing highlights
+    map.eachLayer(layer => {
+        if (layer instanceof L.Marker && layer._icon && layer._icon.classList.contains('optimized-bin')) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Add highlighted markers for optimized bins
+    bins.forEach(bin => {
+        const [lat, lng] = bin.location.split(',').map(Number);
+        const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                html: `<div style="background-color: #3498db; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 3px solid white; box-shadow: 0 0 15px rgba(52, 152, 219, 0.7);">${bin.fill_level}%</div>`,
+                className: 'optimized-bin',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            })
+        }).addTo(map);
+        
+        // Make the marker pulse
+        if (marker._icon) {
+            marker._icon.style.animation = 'pulse 2s infinite';
+        }
+    });
+}
+// Function to clear navigation route
+function clearNavigationRoute() {
+    // Remove route polyline if it exists
+    if (window.currentRoute) {
+        map.removeLayer(window.currentRoute);
+        window.currentRoute = null;
+    }
+    
+    // Remove any route markers
+    map.eachLayer(layer => {
+        if (layer instanceof L.Marker && layer._icon && layer._icon.classList.contains('route-marker')) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    showNotification('Navigation route cleared', 'info');
+}
+// Generate PDF Report Function - FIXED
+async function generateReport() {
+    const btn = document.getElementById('report-btn');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    btn.disabled = true;
+    
+    // Create a more comprehensive PDF report
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(46, 204, 113);
+    doc.text('Eco-Guardian System Report - Rohini Sector-13', 105, 20, { align: 'center' });
+    
+    // Date
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 30, { align: 'center' });
+    
+    // Summary section
+    doc.setFontSize(16);
+    doc.setTextColor(52, 152, 219);
+    doc.text('Summary', 20, 45);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total Smart Bins: ${allBins.length}`, 20, 55);
+    doc.text(`Active Alerts: ${allAlerts.length}`, 20, 60);
+    doc.text(`CO2 Reduction: ${document.getElementById('co2-saved').textContent}`, 20, 65);
+    
+    // Bin status section
+    doc.setFontSize(16);
+    doc.setTextColor(52, 152, 219);
+    doc.text('Bin Status Overview', 20, 80);
+    
+    // Create a table for bin status
+    doc.autoTable({
+        startY: 85,
+        head: [['Status', 'Count', 'Percentage']],
+        body: [
+            ['Normal', document.getElementById('normal-bins').textContent, `${Math.round((document.getElementById('normal-bins').textContent / allBins.length) * 100)}%`],
+            ['Warning', document.getElementById('warning-bins').textContent, `${Math.round((document.getElementById('warning-bins').textContent / allBins.length) * 100)}%`],
+            ['Critical', document.getElementById('critical-bins').textContent, `${Math.round((document.getElementById('critical-bins').textContent / allBins.length) * 100)}%`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [46, 204, 113] }
+    });
+    
+    // Alerts section
+    doc.setFontSize(16);
+    doc.setTextColor(52, 152, 219);
+    doc.text('Active Alerts', 20, doc.lastAutoTable.finalY + 15);
+    
+    if (allAlerts.length > 0) {
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Type', 'Location', 'Time']],
+            body: allAlerts.map(alert => [
+                alert.type.replace('_', ' '),
+                alert.location,
+                new Date(alert.timestamp).toLocaleTimeString()
+            ]),
+            theme: 'grid',
+            headStyles: { fillColor: [231, 76, 60] }
+        });
+    } else {
+        doc.setFontSize(12);
+        doc.text('No active alerts', 20, doc.lastAutoTable.finalY + 25);
+    }
+    
+    // Save the PDF
+    doc.save(`eco-guardian-report-rohini-${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    showNotification('✅ PDF report generated and downloaded', 'success');
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+}
+
+// Clear All Alerts Function
+async function clearAllAlerts() {
+    const btn = document.getElementById('clear-alerts-btn');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<span class="spinner"></span> Clearing...';
+    btn.disabled = true;
+    
+    // Simulate API call with timeout
+    setTimeout(() => {
+        allAlerts = [];
+        updateAlertsList(allAlerts);
+        showNotification('✅ All alerts cleared successfully', 'success');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        document.getElementById('total-alerts').textContent = '0';
+    }, 1500);
+}
+
+// Submit citizen report
+function submitReport() {
+    const reportType = document.getElementById('report-type').value;
+    const location = document.getElementById('report-location').value;
+    const description = document.getElementById('report-description').value;
+    
+    if (!reportType || !location || !description) {
+        showNotification('Please fill all required fields', 'error');
+        return;
+    }
+    
+    // Create a new report
+    const report = {
+        id: Date.now(),
+        type: reportType,
+        location: location,
+        description: description,
+        status: 'pending',
+        timestamp: new Date().toISOString(),
+        citizen: 'Anonymous' // Would normally come from user authentication
+    };
+    
+    publicReports.push(report);
+    
+    // Also create an alert for this report
+    const alert = {
+        id: Date.now() + 1,
+        type: 'citizen_report',
+        location: location,
+        confidence: 0.95,
+        timestamp: new Date().toISOString(),
+        source: 'citizen',
+        reportId: report.id,
+        description: description
+    };
+    
+    allAlerts.push(alert);
+    updateAlertsList(allAlerts);
+    
+    // Update report stats
+    const todayReports = parseInt(document.getElementById('today-reports').textContent) + 1;
+    const pendingReports = parseInt(document.getElementById('pending-reports').textContent) + 1;
+    
+    document.getElementById('today-reports').textContent = todayReports;
+    document.getElementById('pending-reports').textContent = pendingReports;
+    
+    // Clear form
+    document.getElementById('report-type').value = '';
+    document.getElementById('report-location').value = '';
+    document.getElementById('report-description').value = '';
+    document.getElementById('file-preview').innerHTML = '';
+    
+    showNotification('✅ Report submitted successfully! Our team will review it shortly.', 'success');
+}
+
+// View public reports
+function viewPublicReports() {
+    const modal = document.getElementById('reports-modal');
+    const reportsList = document.getElementById('reports-list');
+    
+    reportsList.innerHTML = '';
+    
+    if (publicReports.length === 0) {
+        reportsList.innerHTML = '<p>No reports submitted yet.</p>';
+    } else {
+        publicReports.forEach(report => {
+            const reportEl = document.createElement('div');
+            reportEl.className = 'alert-item';
+            reportEl.style.marginBottom = '10px';
+            
+            const reportTypeText = {
+                'overflowing_bin': 'Overflowing Bin',
+                'illegal_dumping': 'Illegal Dumping',
+                'broken_bin': 'Broken Bin',
+                'missed_collection': 'Missed Collection',
+                'other': 'Other Issue'
+            }[report.type] || report.type;
+            
+            reportEl.innerHTML = `
+                <div class="alert-info">
+                    <span class="alert-type">${reportTypeText} - ${report.status.toUpperCase()}</span>
+                    <span class="alert-location">${report.location}</span>
+                    <span class="alert-time">${new Date(report.timestamp).toLocaleString()}</span>
+                    <p>${report.description}</p>
+                </div>
+            `;
+            
+            reportsList.appendChild(reportEl);
+        });
+    }
+    
+    modal.style.display = 'flex';
+}
+
+// Close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Notification System
+function showNotification(message, type = 'info') {
+    // Remove any existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notif => notif.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'fadeOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// API connection check
+function checkAPIConnection() {
+    // Simulate API check
+    setTimeout(() => {
+        document.getElementById('api-status').textContent = 'Connected';
+        document.getElementById('api-status').style.color = 'var(--primary)';
+    }, 1000);
+}
+
+// Initialize the dashboard
+document.addEventListener('DOMContentLoaded', () => {
+    map = initMap();
+    binChart = initChart();
+    
+    // Set up file upload preview
+    document.getElementById('report-file').addEventListener('change', function(e) {
+        const preview = document.getElementById('file-preview');
+        preview.innerHTML = '';
+        
+        if (this.files && this.files.length > 0) {
+            for (let i = 0; i < this.files.length; i++) {
+                const file = this.files[i];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.maxWidth = '100px';
+                        img.style.maxHeight = '100px';
+                        img.style.margin = '5px';
+                        img.style.borderRadius = '5px';
+                        preview.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+    });
+    
+    // Set up auto-refresh every 5 seconds
+    autoRefreshInterval = setInterval(fetchDashboardData, 5000);
+    
+    // Initial data fetch
+    setTimeout(() => {
+        fetchDashboardData();
+        checkAPIConnection();
+    }, 1000);
+    
+    // Clean up interval when page is unloaded
+    window.addEventListener('beforeunload', function() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    });
+    
+    // Pause auto-refresh when page is hidden (to save resources)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(autoRefreshInterval);
+        } else {
+            // Restart auto-refresh when page becomes visible again
+            autoRefreshInterval = setInterval(fetchDashboardData, 5000);
+            fetchDashboardData(); // Refresh immediately
+        }
+    });
+    
+    // Simulate periodic AI camera alerts
+    setInterval(() => {
+        if (Math.random() > 0.7) { // 30% chance of a new alert
+            const alertTypes = ['illegal_dumping', 'overflowing_bin'];
+            const alertType = alertTypes[Math.floor(Math.random() * alertTypes.length)];
+            
+            const alert = {
+                id: Date.now(),
+                type: alertType,
+                location: '28.740' + (Math.random() * 0.01).toFixed(4) + ',77.123' + (Math.random() * 0.01).toFixed(4),
+                confidence: (0.8 + Math.random() * 0.19).toFixed(2),
+                timestamp: new Date().toISOString(),
+                source: 'ai_camera',
+                description: `${alertType.replace('_', ' ')} detected by AI camera system in Rohini Sector-13`
+            };
+            
+            allAlerts.push(alert);
+            updateAlertsList(allAlerts);
+            
+            // Show notification for high-confidence alerts
+            if (alert.confidence > 0.9) {
+                showNotification(`🚨 New ${alert.type.replace('_', ' ')} detected by AI camera`, 'warning');
+            }
+        }
+    }, 30000); // Check every 30 seconds
+    
+// Simulate bin status changes for simulated bins only
+setInterval(() => {
+    if (allBins.length > 0) {
+        // Only update simulated bins (ID > 1)
+        const simulatedBins = allBins.filter(bin => bin.id > 1);
+        
+        if (simulatedBins.length > 0) {
+            // Update all simulated bins with more realistic changes
+            simulatedBins.forEach(bin => {
+                const currentLevel = bin.fill_level;
+                
+                // More realistic changes with occasional big fluctuations
+                let change;
+                
+                // 10% chance of a significant change (realistic sudden filling/emptying)
+                if (Math.random() < 0.1) {
+                    // Significant change: -15% to +20%
+                    change = (Math.random() * 35 - 15).toFixed(1);
+                } else {
+                    // Normal gradual changes based on current fill level
+                    if (currentLevel < 30) {
+                        // Faster fill when mostly empty: 1% to 5%
+                        change = (Math.random() * 4 + 1).toFixed(1);
+                    } else if (currentLevel < 70) {
+                        // Medium fill: -3% to +4%
+                        change = (Math.random() * 7 - 3).toFixed(1);
+                    } else if (currentLevel < 90) {
+                        // Slower fill when getting full: -2% to +3%
+                        change = (Math.random() * 5 - 2).toFixed(1);
+                    } else {
+                        // Very slow change when nearly full: -1% to +2%
+                        change = (Math.random() * 3 - 1).toFixed(1);
+                    }
+                }
+                
+                // Apply the change
+                bin.fill_level = Math.max(0, Math.min(100, currentLevel + parseFloat(change)));
+                
+                // Make bins more likely to fill up than empty (realistic behavior)
+                if (Math.random() > 0.7 && currentLevel < 95) {
+                    bin.fill_level += 2;
+                }
+                
+                // If bin is nearly full, small chance of bigger increase
+                if (currentLevel > 85 && Math.random() > 0.9) {
+                    bin.fill_level += 5;
+                }
+                
+                // Ensure values stay within bounds
+                bin.fill_level = Math.max(0, Math.min(100, bin.fill_level));
+                
+                // Update the map marker
+                addBinToMap(bin);
+            });
+            
+            // Update stats
+            updateStats(allBins, allAlerts);
+            
+            // Show notification if any bin reaches critical level
+            const criticalBins = simulatedBins.filter(bin => bin.fill_level > 85);
+            if (criticalBins.length > 0) {
+                criticalBins.forEach(bin => {
+                    if (bin.fill_level > 90) {
+                        showNotification(`🚨 ${bin.name} is ${bin.fill_level.toFixed(0)}% full! Needs immediate attention.`, 'warning');
+                    }
+                });
+            }
+        }
+    }
+}, 15000); // Change every 15 seconds for more dynamic behavior// Change every 30 seconds (instead of 15)
+}); 
+
+</script>
+</body>
+</html>

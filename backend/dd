@@ -1,0 +1,3 @@
+cd c:/Users/Vashi/eco-guardian/backend
+venv\Scripts\activate
+python app.py
